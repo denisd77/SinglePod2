@@ -1,0 +1,415 @@
+using System;
+using System.Linq;
+using System.IO;
+using System.Text;
+using System.Collections;
+using System.Collections.Generic;
+
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ **/
+class Player
+{
+    static void Main(string[] args)
+    {
+        string[] inputs;
+
+        // game loop
+        bool start = true;
+        bool useBoost = false;
+        bool usedBoost = false;
+        bool useShield = false;
+        
+        int maxDist = 0;
+        int prevX = 0;
+        int prevY = 0;
+        int allDist = 0;
+        int prevAngle = 0;
+        int thrust = 100;
+        bool hit = true;
+        bool pastCheckPoint = false;
+        int count = 0;
+        int currentCheckpointDist = 0;
+        int prevMyX = -1;
+        int prevMyY = -1;
+        int prevOpponentX = -1;
+        int prevOpponentY = -1;        
+        int speed = 0;
+        int opponentSpeed = 0;
+        
+        int moveAngle = 0;
+        int newMoveAngle = 0;
+        int prevNewMoveAngle = 0;
+        int prevMoveAngle = 0;
+        int prevOpponentDistToMe = 0;
+        int MyDirX = 1;
+        int MyDirY = 1;
+        int OpponentDirX = 1;
+        int OpponentDirY = 1;
+        int tick = 0;
+        bool correction = false;
+        bool useAttack = false;
+        int ch = 0;
+        
+        while (true)
+        {
+            inputs = Console.ReadLine().Split(' ');
+            int x = int.Parse(inputs[0]);
+            int y = int.Parse(inputs[1]);
+            int nextCheckpointX = int.Parse(inputs[2]); // x position of the next check point
+            int nextCheckpointY = int.Parse(inputs[3]); // y position of the next check point
+            int nextCheckpointDist = int.Parse(inputs[4]); // distance to the next checkpoint
+            int nextCheckpointAngle = int.Parse(inputs[5]); // angle between your pod orientation and the direction of the next checkpoint
+            inputs = Console.ReadLine().Split(' ');
+            int opponentX = int.Parse(inputs[0]);
+            int opponentY = int.Parse(inputs[1]);
+
+            int opponentDistToPoint = (int)Math.Sqrt((opponentX - nextCheckpointX)*(opponentX - nextCheckpointX) + (opponentY - nextCheckpointY)*(opponentY - nextCheckpointY));
+            int opponentDistToMe = (int)Math.Sqrt((opponentX - x)*(opponentX - x) + (opponentY - y)*(opponentY - y));
+            
+            
+            if(prevMyX == -1)prevMyX = x;
+            if(prevMyY == -1)prevMyY = y; 
+            if(prevOpponentX == -1)prevOpponentX = opponentX;
+            if(prevOpponentY == -1)prevOpponentY = opponentY; 
+            
+            if (x > prevMyX){MyDirX = 1;}
+            else if (x < prevMyX){MyDirX = -1;}
+            else {MyDirX = 0;}
+
+            if (y > prevMyY){MyDirY = 1;}
+            else if (y < prevMyY){MyDirY = -1;}
+            else {MyDirY = 0;}
+
+            if (opponentX > prevOpponentX){OpponentDirX = 1;}
+            else if (opponentX < prevOpponentX){OpponentDirX = -1;}
+            else {OpponentDirX = 0;}
+
+            if (opponentY > prevOpponentY){OpponentDirY = 1;}
+            else if (opponentY < prevOpponentY){OpponentDirY = -1;}
+            else {OpponentDirY = 0;}
+        
+
+            if (prevMyX == x && prevMyY == y)
+                moveAngle = 0;
+            else
+                moveAngle = getangle(nextCheckpointX,nextCheckpointY,prevMyX,prevMyY,x,y);
+
+            //searching best dest
+
+            int[] bestDest = getBestDest(x,y,nextCheckpointX,nextCheckpointY,moveAngle,nextCheckpointDist,count == 1 || tick < 5);
+
+            if (prevMyX == x && prevMyY == y)
+                newMoveAngle = 0;
+            else
+                newMoveAngle = getangle(bestDest[0],bestDest[1],prevMyX,prevMyY,x,y);
+
+            speed = (int)Math.Sqrt((x-prevMyX)*(x-prevMyX)+(y-prevMyY)*(y-prevMyY));
+            opponentSpeed = (int)Math.Sqrt((opponentX-prevOpponentX)*(opponentX-prevOpponentX)+(opponentY-prevOpponentY)*(opponentY-prevOpponentY));
+            //Console.WriteLine(speed);
+            
+            pastCheckPoint = prevX!=nextCheckpointX || prevY!=nextCheckpointY;
+            if(pastCheckPoint){
+                thrust = 90;
+                tick = 0;
+            }
+            
+            // if (opponentDistToPoint > nextCheckpointDist && opponentDistToMe < nextCheckpointDist
+            //     && opponentDistToMe < 40000){
+            //if (opponentDistToMe < nextCheckpointDist && nextCheckpointDist>100){
+            
+            // if (opponentDistToMe < nextCheckpointDist
+            //     && opponentDistToMe < 1000){
+
+            //     hit = true;
+            // }
+            // else {
+            //     hit = false;
+            // }
+
+            int corrAngle = (int)(Math.Atan(600/(double)nextCheckpointDist)*180/Math.PI);
+            
+            //CORRECTION
+            
+            if (!pastCheckPoint 
+                && (moveAngle > corrAngle && moveAngle > 0 || moveAngle < -corrAngle && moveAngle < 0)
+                && (newMoveAngle > 20 || newMoveAngle < -20 || (newMoveAngle > 0 && newMoveAngle > prevNewMoveAngle || newMoveAngle < 0 && newMoveAngle < prevNewMoveAngle) 
+                && ( nextCheckpointAngle > corrAngle+5 || nextCheckpointAngle < -corrAngle-5)) 
+                ||  (newMoveAngle > 90 || newMoveAngle < -90))
+                correction = true; 
+            else 
+                correction = false;
+            
+            if (correction && nextCheckpointDist<1700 && speed > 200 && thrust > 40){
+                thrust = 20;
+                ch = 1;}
+            else if (!pastCheckPoint && (nextCheckpointAngle > 30 || nextCheckpointAngle < -30) && speed > 200 && (nextCheckpointDist<5000 && tick < 6 || tick <3)){
+                if (nextCheckpointDist<4000 || nextCheckpointAngle > 135 || nextCheckpointAngle < -135){
+                thrust = 20;
+                ch = 2;}
+                else if (nextCheckpointDist<6000 || nextCheckpointAngle > 90 || nextCheckpointAngle < -90){
+                thrust = 40;
+                ch = 3;}
+                else{
+                thrust = 60;
+                ch = 4;}
+            }
+            // else if (nextCheckpointDist<1200 && speed > 200 && thrust > 40){
+            //     thrust = 40;
+            // }
+            else if (nextCheckpointDist < speed*3 && thrust > 25){
+                thrust -= 25;
+                ch = 5;}
+            // else if (nextCheckpointDist <= 1000 && nextCheckpointDist < opponentDistToPoint && nextCheckpointDist+1500 > opponentDistToPoint)
+            //     thrust = 0;
+            else if (nextCheckpointAngle < 5 && nextCheckpointAngle > -5 && speed < 300){
+                thrust = 100;
+                ch = 6;}
+            else if ((newMoveAngle < 90 && newMoveAngle > -90)&&(nextCheckpointAngle > 90 || nextCheckpointAngle < -90)){
+                thrust = 0;
+                ch = 7;}
+            else if ((newMoveAngle > 90 || newMoveAngle < -90)&&(nextCheckpointAngle < 90 && nextCheckpointAngle > -90)){
+                thrust = 100;
+                ch = 8;}
+            else if (pastCheckPoint && (nextCheckpointAngle > 135 || nextCheckpointAngle < -135)){
+                thrust = 0;
+                ch = 9;}
+            else if (pastCheckPoint && (nextCheckpointAngle > 90 || nextCheckpointAngle < -90)){
+                thrust = 40;
+                ch = 10;}
+            else if (pastCheckPoint && (nextCheckpointAngle > 60 || nextCheckpointAngle < -60)){
+                thrust = 60;
+                ch = 11;}
+            else if (correction && nextCheckpointDist < 6000 && thrust > 30 && speed > 300  && (nextCheckpointAngle > 6 || nextCheckpointAngle < -6))
+                if (nextCheckpointDist < 3000){
+                    thrust -= 10;
+                    ch = 12;}
+                else if (nextCheckpointDist < 3500){
+                    thrust -= 5;
+                    ch = 13;}
+                else{
+                    thrust -= 3;
+                    ch = 14;}
+            else if (!pastCheckPoint && (moveAngle > corrAngle && moveAngle > prevMoveAngle || moveAngle < -corrAngle && newMoveAngle < prevNewMoveAngle) && speed > 300 && nextCheckpointDist < 4000  && (nextCheckpointAngle > 5 || nextCheckpointAngle < -5)){
+                thrust -= 15;
+                ch = 15;}
+            // else if (start==false && speed >= 400 && nextCheckpointDist < 7000 && (nextCheckpointAngle > 90 || nextCheckpointAngle < -90) && speed > 400) {
+            //     thrust = 50;
+            // }
+            // else if (speed >= 300 && nextCheckpointDist < 3000 && ((moveAngle > 0 && prevMoveAngle < moveAngle) || (moveAngle < 0 && prevMoveAngle > moveAngle))) {
+            //     thrust -= 20;
+            // }
+             else if (pastCheckPoint && nextCheckpointDist < 6000 && (nextCheckpointAngle < 30+corrAngle && nextCheckpointAngle > -30-corrAngle) && speed > 300  && (nextCheckpointAngle > 5 || nextCheckpointAngle < -5)){
+                    thrust-=15;
+                    ch = 16;
+             }
+             else if (pastCheckPoint && (nextCheckpointAngle < 10+corrAngle && nextCheckpointAngle > -10-corrAngle) && speed > 300){
+                      thrust = 100;
+                      ch = 17;
+             }
+            //  else if (pastCheckPoint && (nextCheckpointAngle > 120 || nextCheckpointAngle < -120) && speed > 400){
+            //           thrust = 0;
+            //  }
+            // else if (thrust > 20 && nextCheckpointDist < 7000 
+            //         && ((nextCheckpointAngle >= 0 && prevAngle < nextCheckpointAngle) || (nextCheckpointAngle < 0 
+            //         && prevAngle > nextCheckpointAngle))
+            //         && (nextCheckpointAngle>40 || nextCheckpointAngle<-40) && speed > 400){
+            //     //thrust-=20;
+            //     thrust=0;
+            // }
+            // else if(thrust > 10 && speed >=400 && nextCheckpointDist < 7000
+            //         && ((nextCheckpointAngle >= 0 && prevAngle < nextCheckpointAngle) || (nextCheckpointAngle < 0 
+            //         && prevAngle > nextCheckpointAngle))
+            //         && (nextCheckpointAngle>40 || nextCheckpointAngle<-40) && speed > 400){
+            //     //thrust-=20;
+            //     thrust=0;
+            // }
+            // else if(((nextCheckpointAngle >= 0 && prevAngle > nextCheckpointAngle) || (nextCheckpointAngle < 0 
+            //         && prevAngle < nextCheckpointAngle))
+            //         && (nextCheckpointAngle<45 && nextCheckpointAngle>-45)){
+            //     //thrust-=20;
+            //     thrust=100;
+            // }
+            // else if (nextCheckpointDist<500 && thrust >= 20 && speed > 400){
+            //         thrust = 20;                
+            // }
+            else if ((nextCheckpointAngle>60+corrAngle || nextCheckpointAngle<-60-corrAngle) && speed > 400 && nextCheckpointDist < 6000){
+                thrust -= 15;
+                ch = 18;
+            }
+            else {
+                thrust = 100;
+                ch = 19;
+            }
+            
+            if(pastCheckPoint){
+                currentCheckpointDist = nextCheckpointDist;
+                if (nextCheckpointDist>maxDist){
+                    maxDist = nextCheckpointDist;
+                }
+            }
+
+             if (nextCheckpointDist > 5000
+                     && nextCheckpointAngle < 10+corrAngle && nextCheckpointAngle > -10-corrAngle && moveAngle < 10+corrAngle && moveAngle > -10-corrAngle && !usedBoost
+                     && ((count > 5 && maxDist == currentCheckpointDist) || nextCheckpointDist > 5000)){
+                 useBoost = true;
+                 usedBoost = true;
+             }
+            
+            useShield = opponentDistToMe <= 955 && opponentDistToMe < prevOpponentDistToMe
+                        //&& thrust<50 && opponentSpeed > speed && opponentSpeed > 500 && speed < 300;
+                        && (thrust<50 || opponentDistToMe+350 < prevOpponentDistToMe || nextCheckpointAngle>90 || nextCheckpointAngle<-90 || speed < 300)
+                        && (tick > 5 || nextCheckpointAngle>60 || nextCheckpointAngle<-60 || speed < 300)
+                        && opponentSpeed > 300
+                        && (count > 1);
+
+            useAttack = opponentDistToMe <= 1500;
+
+
+            // if (count >= 1 && thrust == 100 && !usedBoost && opponentDistToMe < 40000){
+            //     Console.WriteLine(opponentX + " " + opponentY + " BOOST");
+            //     usedBoost = true;
+            // }
+            // else 
+            string PodCommand = "";
+            
+            if (thrust < 0) thrust = 0;
+            if (thrust > 100) thrust = 100;
+            
+            
+            // int bettaAngle = (int)Math.Acos((double)(nextCheckpointX - x)/(double)nextCheckpointDist)*180/Math.PI;
+            // int alfaAngle = 90 - bettaAngle;
+            // int varX1 = nextCheckpointX - (int)Math.Cos((double)alfaAngle*Math.PI/180);
+            // int varX2 = nextCheckpointX + (int)Math.Cos((double)alfaAngle*Math.PI/180);
+            
+            // if (nextCheckpointDist < 1000 ) {
+            //     int x3 = 2*x-prevMyX;
+            //     int y3 = (int)((prevMyY - y)*x3 + (prevMyX*y-x*prevMyY))/(prevMyX - x);
+            //     PodCommand = "" + x3 + " " + y3 + " " + thrust;
+            // }
+
+            if (useShield){
+                if (correction || count == 1)
+                    PodCommand = "" + (nextCheckpointX+prevX)/2 + " " + (nextCheckpointY+prevY)/2 + " SHIELD";
+                else
+                    PodCommand = "" + bestDest[0] + " " + bestDest[1] + " SHIELD";
+                useShield = false;
+            }
+            else if (useBoost){
+                if (correction || count == 1)
+                    PodCommand = "" + (nextCheckpointX+prevX)/2 + " " + (nextCheckpointY+prevY)/2 + " BOOST";
+                else
+                    PodCommand = "" + bestDest[0] + " " + bestDest[1] + " BOOST";
+                useBoost = false;
+                }
+            else if (useAttack){
+                    PodCommand = "" + (opponentX+nextCheckpointX)/2 + " " + (opponentY+nextCheckpointY)/2 + " " + thrust;
+            }
+            else if (count == 1)
+                    PodCommand = "" + (opponentX+nextCheckpointX)/2 + " " + (opponentY+nextCheckpointY)/2 + " " + thrust;
+            else if (pastCheckPoint && opponentDistToPoint > nextCheckpointDist && opponentDistToMe < 3000){
+                if (correction || count == 1) 
+                    PodCommand = "" + (nextCheckpointX+prevX)/2 + " " + (nextCheckpointY+prevY)/2 + " " + thrust;
+                else
+                    //PodCommand = "" + (bestDest[0]+opponentX)/2 + " " + (bestDest[1]+opponentY)/2 + " " + thrust;
+                    PodCommand = "" + bestDest[0] + " " + bestDest[1] + " " + thrust;
+            }
+            else {if (nextCheckpointDist>5000 && opponentDistToPoint > nextCheckpointDist  && opponentDistToMe < 3000){
+                    if (correction || count == 1)
+                        PodCommand = "" + (nextCheckpointX+prevX)/2 + " " + (nextCheckpointY+prevY)/2 + " " + thrust;
+                    else
+                        //PodCommand = "" + (bestDest[0]+opponentX)/2 + " " + (bestDest[1]+opponentY)/2 + " " + thrust;
+                        PodCommand = "" + bestDest[0] + " " + bestDest[1] + " " + thrust;
+                }
+                else {  if(correction || count == 1)
+                            PodCommand = "" + (nextCheckpointX+prevX)/2 + " " + (nextCheckpointY+prevY)/2 + " " + thrust;                        
+                        else {
+                            PodCommand = "" + bestDest[0] + " " + bestDest[1] + " " + thrust;                        
+                        }
+                }
+            }
+            Console.WriteLine(PodCommand + " d:"+nextCheckpointDist + " o.dist:" + opponentDistToMe + " s:"+speed + " o.s:" + opponentSpeed + " new.Angle:"+newMoveAngle + " n.angle:"+nextCheckpointAngle + " ch:"+ch+" past:"+pastCheckPoint);
+            //Console.WriteLine(PodCommand + " x:"+x+"y:"+y + " x:"+opponentX+"y:"+opponentY);
+            
+            prevX = nextCheckpointX;
+            prevY = nextCheckpointY;
+            prevMyX = x;
+            prevMyY = y;
+            prevOpponentX = opponentX;
+            prevOpponentY = opponentY;
+            prevAngle = nextCheckpointAngle;
+            prevMoveAngle = moveAngle;
+            prevNewMoveAngle = newMoveAngle;
+            prevOpponentDistToMe = opponentDistToMe;
+            start = false;            
+            if(pastCheckPoint)count++;
+            tick++;
+
+        }
+    }
+    private static int getangle(int x_1,int y_1,int x_2,int y_2,int x_3,int y_3){
+        double x1 = x_1 - x_2, x2 = x_3 - x_2;
+        double y1 = y_1 - y_2, y2 = y_3 - y_2;
+        double d1 = Math.Sqrt (x1 * x1 + y1 * y1);
+        double d2 = Math.Sqrt (x2 * x2 + y2 * y2);
+        return (int)(Math.Acos((x1 * x2 + y1 * y2) / (d1 * d2))*180/Math.PI);
+    }
+    
+    private static int[] getBestDest(int x1, int y1, int x2, int y2, int gammaAngle, int dist, bool opp){
+        double bettaAngle = 0;
+        double alfaAngle = 0;
+        double Delta = (double)dist*Math.Sin(gammaAngle*Math.PI/180);
+        double XCorr;
+        double YCorr;
+        double Dest1;
+        double Dest2;
+        double resX;
+        double resY;
+        
+        if(Delta > 400 || gammaAngle >= 90 || gammaAngle <= -90 || x1==x2 || y1==y2 || opp){
+            resX = x2;
+            resY = y2;
+        }
+        else if (x1>=x2 && y1>=y2 || x1<x2 && y1<y2){
+            bettaAngle = Math.Atan(Math.Abs((x1-x2)/(y1-y2)))*180/Math.PI;
+            alfaAngle = 90 - gammaAngle - bettaAngle;
+            XCorr = Delta*Math.Sin(alfaAngle*Math.PI/180);
+            YCorr = Delta*Math.Cos(alfaAngle*Math.PI/180);
+            Dest1 = Math.Sqrt((x2+XCorr-x1)*(x2+XCorr-x1)+(y2-YCorr-y1)*(y2-YCorr-y1));
+            Dest2 = Math.Sqrt((x2-XCorr-x1)*(x2-XCorr-x1)+(y2+YCorr-y1)*(y2+YCorr-y1));
+            
+            if (Dest1 > Dest2){
+                resX = x2-XCorr;
+                resY = y2+YCorr;
+            }
+            else{
+                resX = x2+XCorr;
+                resY = y2-YCorr;
+            }
+
+        }
+        else{
+            bettaAngle = Math.Atan(Math.Abs((y1-y2)/(x1-x2)))*180/Math.PI;
+            alfaAngle = 90 - gammaAngle - bettaAngle;
+            XCorr = Delta*Math.Cos(alfaAngle*Math.PI/180);
+            YCorr = Delta*Math.Sin(alfaAngle*Math.PI/180);            
+            Dest1 = Math.Sqrt((x2+XCorr-x1)*(x2+XCorr-x1)+(y2+YCorr-y1)*(y2+YCorr-y1));
+            Dest2 = Math.Sqrt((x2-XCorr-x1)*(x2-XCorr-x1)+(y2-YCorr-y1)*(y2-YCorr-y1));
+            if (Dest1 > Dest2){
+                resX = x2-XCorr;
+                resY = y2-YCorr;
+            }
+            else{
+                resX = x2+XCorr;
+                resY = y2+YCorr;
+            }
+
+        }
+        int[] res = new int[2];
+        res[0] = (int)resX;
+        res[1] = (int)resY;
+        
+        return res;
+    }
+}
